@@ -31,7 +31,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     while True:
         await fire_message.fire_event.wait()
-        await websocket.send_json(fire_message.message)
+        await websocket.send_text(str(fire_message.message))
         fire_message.clear_event()
 
     
