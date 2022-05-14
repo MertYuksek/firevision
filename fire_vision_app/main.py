@@ -10,12 +10,20 @@ from sqlalchemy.orm import Session
 from .database import get_db, engine
 from .schemas import PostInfo
 from . import models
-
+from fastapi.middleware.cors import CORSMiddleware
 
 fire_message = get_fire_message()
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/image")
