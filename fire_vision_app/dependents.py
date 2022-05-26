@@ -1,4 +1,6 @@
-import asyncio
+import time
+from typing import List
+from fastapi import WebSocket
 import torch
 
 
@@ -23,29 +25,32 @@ class Fire_Vision():
         return results
 
 
-class Fire_Message():
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
 
-    def __init__(self) -> None:
-        self.fire_event = asyncio.Event()
-        self.message = None
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
 
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
 
-    def set_event(self, message):
-        self.fire_event.set()
-        self.message = message
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
 
-
-    def clear_event(self):
-        self.fire_event.clear()
-        self.message = None
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
 
 
 fire_model = Fire_Vision()
-fire_message = Fire_Message()
+manager = ConnectionManager()
 
 
 def get_fire_model():
     return fire_model
 
-def get_fire_message():
-    return fire_message
+
+def get_manager():
+    return manager

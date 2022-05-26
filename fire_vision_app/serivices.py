@@ -1,14 +1,14 @@
-from .dependents import get_fire_message, get_fire_model
+import asyncio
+from .dependents import get_fire_model, get_manager
 from sqlalchemy.orm import Session
-from fastapi import File, Depends
-from .database import get_db
+from fastapi import File
 import PIL.Image as Image
 from . import models
 import io
 
 
 fire_model = get_fire_model()
-fire_message = get_fire_message()
+manager = get_manager()
 
 
 def analyze_data(data, image):
@@ -30,10 +30,18 @@ def analyze_image(image: File):
     return analyze_result
 
 
-def notify(analyze_result):
+async def some_callback(analyze_result):
+    await manager.broadcast(str(analyze_result))
+
+
+def send_message_to_mobile(analyze_result):
     num_fire = analyze_result.get("fire", 0)
     if num_fire > 0:
-        fire_message.set_event(analyze_result)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        loop.run_until_complete(manager.broadcast(str(analyze_result)))
+        loop.close()
         
 
 def save_analysis(analyze_result: dict, db: Session):

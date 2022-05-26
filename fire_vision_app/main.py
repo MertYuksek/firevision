@@ -3,16 +3,18 @@
 # Second install fast api.
 # pip install fastapi[all]
 
-from fastapi import Depends, FastAPI, WebSocket, File
-from .serivices import analyze_data, notify, save_analysis
-from .dependents import get_fire_message
+import asyncio
+import time
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect, WebSocketDisconnect, File
+from .serivices import analyze_data, send_message_to_mobile, save_analysis
+from .dependents import get_manager
 from sqlalchemy.orm import Session
 from .database import get_db, engine
 from .schemas import PostInfo
 from . import models
 from fastapi.middleware.cors import CORSMiddleware
+import threading
 
-fire_message = get_fire_message()
 
 models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
@@ -29,20 +31,23 @@ app.add_middleware(
 @app.post("/image")
 async def send_image(data: PostInfo = Depends(PostInfo.as_form), file: bytes = File(...), db: Session = Depends(get_db)):
     analyze_result = analyze_data(data, file)
-    notify(analyze_result)
     save_analysis(analyze_result, db)
+    _thread = threading.Thread(target=send_message_to_mobile, args=(analyze_result, ))
+    _thread.start()
     return analyze_result
 
 
-@app.websocket("/warning")
+manager = get_manager()
+@app.websocket("/ws/warning/")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    while True:
-        await fire_message.fire_event.wait()
-        await websocket.send_text(str(fire_message.message))
-        fire_message.clear_event()
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
-    
+
 
 
     
